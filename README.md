@@ -22,7 +22,7 @@ Repo này chứa 3 ví dụ Python nhỏ để học cách gọi OpenAI API bằ
 ```powershell
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install openai streamlit python-dotenv
+python -m pip install -r requirements.txt
 ```
 
 Tạo file `.env` từ `.env.example`:
