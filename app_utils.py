@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+from functools import lru_cache
 
 from pathlib import Path
 from openai import OpenAI
@@ -36,8 +37,13 @@ def load_openai_settings() -> tuple[str, str]:
     return api_key, model_name
 
 
+@lru_cache(maxsize=1)
 def build_openai_client() -> tuple[OpenAI, str]:
-    """Trả về OpenAI client cùng model đang được cấu hình."""
+    """Trả về OpenAI client cùng model đang cấu hình, cache cho cả tiến trình.
+
+    Client chỉ tạo một lần: env đã bất biến trong tiến trình (override=False)
+    nên tạo lại mỗi request là thừa. Test reset bằng build_openai_client.cache_clear().
+    """
     api_key, model_name = load_openai_settings()
     return OpenAI(api_key=api_key), model_name
 

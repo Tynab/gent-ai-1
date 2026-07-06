@@ -1,6 +1,7 @@
 """Unit test cho app_utils.py — mock hoàn toàn, không gọi mạng, không cần API key."""
 
 import json
+from types import SimpleNamespace
 
 import pytest
 
@@ -8,15 +9,17 @@ import app_utils
 from app_utils import (
     DEFAULT_SYSTEM_PROMPT,
     build_messages,
+    build_openai_client,
     load_chat_history,
     load_openai_settings,
+    request_chat_completion,
     save_chat_history,
 )
 
 
 @pytest.fixture(autouse=True)
 def isolate_env(monkeypatch):
-    """Chặn .env thật của repo lọt vào test.
+    """Chặn .env thật của repo lọt vào test và reset cache client.
 
     load_dotenv(override=False) không ghi đè biến ĐÃ CÓ trong môi trường,
     kể cả khi giá trị là chuỗi rỗng — nên đặt sẵn "" là đủ để vô hiệu .env.
@@ -24,6 +27,9 @@ def isolate_env(monkeypatch):
     """
     monkeypatch.setenv("OPENAI_API_KEY", "")
     monkeypatch.setenv("OPENAI_MODEL", "")
+    build_openai_client.cache_clear()
+    yield
+    build_openai_client.cache_clear()
 
 
 class TestLoadOpenaiSettings:
@@ -119,3 +125,50 @@ class TestChatHistoryIO:
         save_chat_history([{"role": "user", "content": "cũ"}], file_path)
         save_chat_history([{"role": "user", "content": "mới"}], file_path)
         assert load_chat_history(file_path) == [{"role": "user", "content": "mới"}]
+
+
+def make_fake_client(content):
+    """Tạo client giả: ghi lại kwargs của lần gọi create() và trả response cố định."""
+    response = SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=content))])
+    completions = SimpleNamespace(last_kwargs=None)
+
+    def create(**kwargs):
+        completions.last_kwargs = kwargs
+        return response
+
+    completions.create = create
+    return SimpleNamespace(chat=SimpleNamespace(completions=completions))
+
+
+class TestBuildOpenaiClientCache:
+    def test_hai_lan_goi_tra_ve_cung_client(self, monkeypatch):
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+        monkeypatch.setenv("OPENAI_MODEL", "gpt-test")
+        client1, model1 = build_openai_client()
+        client2, model2 = build_openai_client()
+        assert client1 is client2
+        assert model1 == model2 == "gpt-test"
+
+    def test_cache_clear_tao_client_moi(self, monkeypatch):
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+        monkeypatch.setenv("OPENAI_MODEL", "gpt-test")
+        client1, _ = build_openai_client()
+        build_openai_client.cache_clear()
+        client2, _ = build_openai_client()
+        assert client1 is not client2
+
+
+class TestRequestChatCompletion:
+    def test_gui_dung_model_va_messages(self, monkeypatch):
+        fake_client = make_fake_client("trả lời")
+        monkeypatch.setattr(app_utils, "build_openai_client", lambda: (fake_client, "gpt-test"))
+        assert request_chat_completion("câu hỏi") == "trả lời"
+        sent = fake_client.chat.completions.last_kwargs
+        assert sent["model"] == "gpt-test"
+        assert sent["messages"][0]["role"] == "system"
+        assert sent["messages"][-1] == {"role": "user", "content": "câu hỏi"}
+
+    def test_content_none_chuan_hoa_thanh_chuoi_rong(self, monkeypatch):
+        fake_client = make_fake_client(None)
+        monkeypatch.setattr(app_utils, "build_openai_client", lambda: (fake_client, "gpt-test"))
+        assert request_chat_completion("câu hỏi") == ""
