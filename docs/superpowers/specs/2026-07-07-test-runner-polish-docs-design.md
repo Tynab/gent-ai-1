@@ -89,4 +89,4 @@ Không đổi semantics: fail-fast cấu hình lúc khởi động (CLI exit cod
 2. `python -m py_compile` sạch cho 4 file nguồn + file test.
 3. 4 file docs/config được viết lại đúng nội dung mô tả trên; `CLAUDE.md` không còn khẳng định nào sai với code.
 4. Workflow review đối kháng (theo pattern session) không còn finding thật nào.
-5. Không commit code khi user chưa yêu cầu (spec doc này được commit riêng theo quy trình skill).
+5. Commit theo từng task trong quá trình thực thi plan (quy trình superpowers yêu cầu commit thường xuyên); KHÔNG push khi user chưa yêu cầu.
