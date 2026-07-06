@@ -68,10 +68,13 @@ python -m streamlit run .\openai_with_context.py
 - Tách phần đọc/ghi lịch sử chat ra khỏi Streamlit để dễ bảo trì.
 - Sửa luồng render chat trong Streamlit để block `assistant` không bị lồng bên trong block `user`.
 - Bổ sung module docstring và comment mô tả bằng tiếng Việt cho phần code tự viết.
+- Kiểm tra cấu hình ngay khi khởi động (fail fast) ở cả CLI lẫn Streamlit thay vì đợi request đầu tiên.
+- CLI thoát êm bằng `Ctrl + C`/EOF và nhắc nhập lại khi câu hỏi rỗng thay vì crash.
+- Ghi `chat_history.json` kiểu atomic (file tạm + replace) và sao lưu file hỏng sang `.bak` thay vì ghi đè mất dữ liệu.
+- Thống nhất message lỗi sang tiếng Việt và bỏ trùng lặp câu hỏi hiện tại trong payload gửi OpenAI.
 
 ## Gợi ý mở rộng tiếp theo
 
-- Thêm `requirements.txt` hoặc `pyproject.toml` để khóa phiên bản dependency.
 - Bổ sung lại test tự động cho luồng gọi API và xử lý session Streamlit khi cần CI/CD.
 - Bổ sung nút `Xóa lịch sử chat` trong bản có ngữ cảnh nếu muốn reset nhanh.
 

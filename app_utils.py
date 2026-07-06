@@ -27,11 +27,11 @@ def load_openai_settings() -> tuple[str, str]:
 
     api_key = os.getenv("OPENAI_API_KEY", "").strip()
     if not api_key:
-        raise RuntimeError("Missing OPENAI_API_KEY environment variable")
+        raise RuntimeError("Thiếu biến môi trường OPENAI_API_KEY")
 
     model_name = os.getenv("OPENAI_MODEL", "").strip()
     if not model_name:
-        raise RuntimeError("Missing OPENAI_MODEL environment variable")
+        raise RuntimeError("Thiếu biến môi trường OPENAI_MODEL")
 
     return api_key, model_name
 
@@ -75,7 +75,7 @@ def request_chat_completion(
 
 
 def load_chat_history(file_path: Path = CHAT_HISTORY_FILE) -> list[dict[str, str]]:
-    """Đọc lịch sử chat từ file JSON và loại bỏ dữ liệu sai cấu trúc."""
+    """Đọc lịch sử chat từ file JSON, raise ValueError nếu dữ liệu sai cấu trúc."""
     if not file_path.exists():
         return []
 
@@ -83,17 +83,17 @@ def load_chat_history(file_path: Path = CHAT_HISTORY_FILE) -> list[dict[str, str
         raw_history = json.load(file)
 
     if not isinstance(raw_history, list):
-        raise ValueError("Chat history must be a list")
+        raise ValueError("Lịch sử chat phải là một danh sách")
 
     normalized_history: list[dict[str, str]] = []
     for message in raw_history:
         if not isinstance(message, dict):
-            raise ValueError("Each history item must be an object")
+            raise ValueError("Mỗi mục trong lịch sử chat phải là một object")
 
         role = message.get("role")
         content = message.get("content")
         if role not in VALID_CHAT_ROLES or not isinstance(content, str):
-            raise ValueError("History item must contain a valid role and string content")
+            raise ValueError("Mục lịch sử chat phải có role hợp lệ và content là chuỗi")
 
         normalized_history.append({"role": role, "content": content})
 
@@ -101,6 +101,8 @@ def load_chat_history(file_path: Path = CHAT_HISTORY_FILE) -> list[dict[str, str
 
 
 def save_chat_history(history: list[dict[str, str]], file_path: Path = CHAT_HISTORY_FILE) -> None:
-    """Lưu lịch sử chat ra file JSON để phiên Streamlit sau có thể tải lại."""
-    with file_path.open("w", encoding="utf-8") as file:
+    """Lưu lịch sử chat ra file JSON kiểu atomic (ghi file tạm rồi thay thế) để tránh file cụt."""
+    temp_path = file_path.with_name(file_path.name + ".tmp")
+    with temp_path.open("w", encoding="utf-8") as file:
         json.dump(history, file, ensure_ascii=False, indent=2)
+    temp_path.replace(file_path)

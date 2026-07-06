@@ -41,4 +41,5 @@ Thumbs.db
 
 # Local app state
 chat_history.json
+chat_history.json.*
 .streamlit/

@@ -2,11 +2,7 @@
 
 import streamlit as st
 
-from dotenv import load_dotenv
-from app_utils import DEFAULT_SYSTEM_PROMPT, request_chat_completion
-
-
-load_dotenv()
+from app_utils import DEFAULT_SYSTEM_PROMPT, load_openai_settings, request_chat_completion
 
 
 def generate_response(user_input: str) -> str:
@@ -15,6 +11,13 @@ def generate_response(user_input: str) -> str:
 
 
 st.set_page_config(page_title="Trợ lý AI", layout="wide")
+
+try:
+    load_openai_settings()
+except RuntimeError as error:
+    st.error(f"Lỗi cấu hình: {error}")
+    st.stop()
+
 st.title("Trợ lý AI")
 st.caption("Giao diện hỏi đáp cơ bản, phù hợp để thử nhanh model và prompt hệ thống.")
 
