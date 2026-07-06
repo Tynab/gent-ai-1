@@ -1,6 +1,7 @@
 """Unit test cho app_utils.py — mock hoàn toàn, không gọi mạng, không cần API key."""
 
 import json
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -172,3 +173,10 @@ class TestRequestChatCompletion:
         fake_client = make_fake_client(None)
         monkeypatch.setattr(app_utils, "build_openai_client", lambda: (fake_client, "gpt-test"))
         assert request_chat_completion("câu hỏi") == ""
+
+
+class TestChatHistoryFileConstant:
+    def test_neo_theo_thu_muc_chua_module(self):
+        expected = Path(app_utils.__file__).resolve().parent / "chat_history.json"
+        assert app_utils.CHAT_HISTORY_FILE == expected
+        assert app_utils.CHAT_HISTORY_FILE.is_absolute()

@@ -18,7 +18,9 @@ DEFAULT_SYSTEM_PROMPT = (
     "Bạn là một trợ lý AI hữu ích, thân thiện và thông minh. "
     "Hãy trả lời câu hỏi của người dùng một cách chi tiết và dễ hiểu."
 )
-CHAT_HISTORY_FILE = Path("chat_history.json")
+# Neo file lịch sử theo thư mục chứa module: chạy app từ thư mục nào
+# cũng dùng đúng một file tại repo root (tránh "mất lịch sử" khi chạy sai chỗ).
+CHAT_HISTORY_FILE = Path(__file__).resolve().parent / "chat_history.json"
 VALID_CHAT_ROLES = {"user", "assistant"}
 
 
