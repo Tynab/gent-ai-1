@@ -1,45 +1,26 @@
-# Virtual environments
+# Virtual environment
 .venv/
-.venv*/
 venv/
-env/
 
-# Secrets and local configuration
+# Secrets và cấu hình cục bộ
 .env
 .env.*
 !.env.example
 
-# Python cache and tooling
+# Cache Python / pytest
 __pycache__/
 *.py[cod]
 .pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.pyre/
-.pytype/
-.hypothesis/
-.tox/
-.nox/
-.coverage
-.coverage.*
-coverage.xml
-htmlcov/
 
-# Build artifacts
-build/
-dist/
-*.egg-info/
-pip-wheel-metadata/
-
-# IDE and editor files
+# IDE
 .idea/
 .vscode/
 
-# OS files
+# File hệ điều hành
 Thumbs.db
 .DS_Store
 
-# Local app state
+# Trạng thái cục bộ của app
 chat_history.json
 chat_history.json.*
 .streamlit/
