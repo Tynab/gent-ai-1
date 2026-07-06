@@ -1,18 +1,22 @@
 """Tiện ích dùng chung cho các ví dụ OpenAI trong repo.
 
-Module này tập trung phần cấu hình, tạo request và đọc/ghi lịch sử chat
-để các script giao diện và CLI không bị lặp logic.
+Module này gom phần cấu hình, khởi tạo client, tạo payload messages và
+đọc/ghi lịch sử chat để các entry point (CLI lẫn Streamlit) không lặp logic.
 """
 
 from __future__ import annotations
 
 import json
 import os
-from functools import lru_cache
 
+from functools import lru_cache
 from pathlib import Path
 from openai import OpenAI
 from dotenv import load_dotenv
+
+# Kiểu dùng chung cho lịch sử chat: mỗi message là {"role": ..., "content": ...}.
+ChatMessage = dict[str, str]
+ChatHistory = list[ChatMessage]
 
 DEFAULT_SYSTEM_PROMPT = (
     "Bạn là một trợ lý AI hữu ích, thân thiện và thông minh. "
@@ -25,7 +29,12 @@ VALID_CHAT_ROLES = {"user", "assistant"}
 
 
 def load_openai_settings() -> tuple[str, str]:
-    """Đọc cấu hình OpenAI từ biến môi trường và kiểm tra giá trị bắt buộc."""
+    """Đọc cấu hình OpenAI từ biến môi trường, raise RuntimeError nếu thiếu.
+
+    Được gọi fail-fast ngay khi khởi động ở cả 3 entry point. Vì
+    load_dotenv(override=False), biến đã có trong môi trường luôn thắng
+    file .env, và sửa .env giữa chừng cần restart mới có tác dụng.
+    """
     load_dotenv(override=False)
 
     api_key = os.getenv("OPENAI_API_KEY", "").strip()
@@ -52,12 +61,14 @@ def build_openai_client() -> tuple[OpenAI, str]:
 
 def build_messages(
     user_input: str,
-    chat_history: list[dict[str, str]] | None = None,
+    chat_history: ChatHistory | None = None,
     system_prompt: str = DEFAULT_SYSTEM_PROMPT,
-) -> list[dict[str, str]]:
-    """Ghép system prompt, lịch sử chat hợp lệ và câu hỏi hiện tại thành payload."""
-    messages = [{"role": "system", "content": system_prompt}]
+) -> ChatHistory:
+    """Ghép system prompt, lịch sử hợp lệ và câu hỏi hiện tại thành payload."""
+    messages: ChatHistory = [{"role": "system", "content": system_prompt}]
 
+    # Lọc êm entry không hợp lệ (khác load_chat_history vốn raise): lịch sử
+    # trong session có thể đến từ nhiều nguồn, bỏ qua entry hỏng vẫn trả lời được.
     for message in chat_history or []:
         role = message.get("role")
         content = message.get("content")
@@ -70,20 +81,25 @@ def build_messages(
 
 def request_chat_completion(
     user_input: str,
-    chat_history: list[dict[str, str]] | None = None,
+    chat_history: ChatHistory | None = None,
     system_prompt: str = DEFAULT_SYSTEM_PROMPT,
 ) -> str:
-    """Gửi request tới OpenAI và trả về nội dung câu trả lời đã được rút gọn."""
+    """Gửi request tới OpenAI và trả về nội dung trả lời dạng chuỗi."""
     client, model_name = build_openai_client()
     response = client.chat.completions.create(
         model=model_name,
         messages=build_messages(user_input, chat_history, system_prompt),
     )
+    # Model có thể trả content None (hiếm) — chuẩn hóa về chuỗi rỗng cho UI.
     return response.choices[0].message.content or ""
 
 
-def load_chat_history(file_path: Path = CHAT_HISTORY_FILE) -> list[dict[str, str]]:
-    """Đọc lịch sử chat từ file JSON, raise ValueError nếu dữ liệu sai cấu trúc."""
+def load_chat_history(file_path: Path = CHAT_HISTORY_FILE) -> ChatHistory:
+    """Đọc lịch sử chat từ file JSON, raise ValueError nếu dữ liệu sai cấu trúc.
+
+    Chủ đích raise thay vì lọc êm: để nơi gọi tự quyết cách xử lý file hỏng
+    (openai_with_context.py chọn sao lưu file sang .bak rồi làm lại từ đầu).
+    """
     if not file_path.exists():
         return []
 
@@ -93,7 +109,7 @@ def load_chat_history(file_path: Path = CHAT_HISTORY_FILE) -> list[dict[str, str
     if not isinstance(raw_history, list):
         raise ValueError("Lịch sử chat phải là một danh sách")
 
-    normalized_history: list[dict[str, str]] = []
+    normalized_history: ChatHistory = []
     for message in raw_history:
         if not isinstance(message, dict):
             raise ValueError("Mỗi mục trong lịch sử chat phải là một object")
@@ -108,8 +124,10 @@ def load_chat_history(file_path: Path = CHAT_HISTORY_FILE) -> list[dict[str, str
     return normalized_history
 
 
-def save_chat_history(history: list[dict[str, str]], file_path: Path = CHAT_HISTORY_FILE) -> None:
-    """Lưu lịch sử chat ra file JSON kiểu atomic (ghi file tạm rồi thay thế) để tránh file cụt."""
+def save_chat_history(history: ChatHistory, file_path: Path = CHAT_HISTORY_FILE) -> None:
+    """Lưu lịch sử chat ra file JSON kiểu atomic để tránh file cụt giữa chừng."""
+    # Ghi ra file tạm rồi replace (atomic trên cùng ổ đĩa): tiến trình có bị
+    # ngắt giữa lúc ghi thì file lịch sử gốc vẫn nguyên vẹn.
     temp_path = file_path.with_name(file_path.name + ".tmp")
     with temp_path.open("w", encoding="utf-8") as file:
         json.dump(history, file, ensure_ascii=False, indent=2)

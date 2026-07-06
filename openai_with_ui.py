@@ -2,16 +2,11 @@
 
 import streamlit as st
 
-from app_utils import DEFAULT_SYSTEM_PROMPT, load_openai_settings, request_chat_completion
-
-
-def generate_response(user_input: str) -> str:
-    """Gửi câu hỏi hiện tại lên model và trả về phản hồi văn bản."""
-    return request_chat_completion(user_input, system_prompt=DEFAULT_SYSTEM_PROMPT)
-
+from app_utils import load_openai_settings, request_chat_completion
 
 st.set_page_config(page_title="Trợ lý AI", layout="wide")
 
+# Fail fast: thiếu cấu hình thì báo lỗi ngay khi mở trang và dừng render.
 try:
     load_openai_settings()
 except RuntimeError as error:
@@ -28,7 +23,7 @@ if user_input:
         st.markdown(user_input)
 
     try:
-        response = generate_response(user_input)
+        response = request_chat_completion(user_input)
     except Exception as error:
         st.error(f"Không thể tạo câu trả lời: {error}")
     else:

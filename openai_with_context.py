@@ -4,21 +4,11 @@ import streamlit as st
 
 from app_utils import (
     CHAT_HISTORY_FILE,
-    DEFAULT_SYSTEM_PROMPT,
     load_chat_history,
     load_openai_settings,
     request_chat_completion,
     save_chat_history,
 )
-
-
-def generate_response(user_input: str) -> str:
-    """Sinh câu trả lời dựa trên lịch sử chat trong session hiện tại."""
-    return request_chat_completion(
-        user_input,
-        chat_history=st.session_state.chat_history,
-        system_prompt=DEFAULT_SYSTEM_PROMPT,
-    )
 
 
 def initialize_chat_history() -> None:
@@ -29,6 +19,7 @@ def initialize_chat_history() -> None:
     try:
         st.session_state.chat_history = load_chat_history(CHAT_HISTORY_FILE)
     except Exception as error:
+        # File hỏng: sao lưu sang .bak để không ghi đè mất dữ liệu, rồi làm lại từ đầu.
         notice = f"Không thể tải lịch sử chat: {error}."
         if CHAT_HISTORY_FILE.exists():
             backup_path = CHAT_HISTORY_FILE.with_name(CHAT_HISTORY_FILE.name + ".bak")
@@ -40,6 +31,7 @@ def initialize_chat_history() -> None:
 
 st.set_page_config(page_title="Trợ lý AI có ngữ cảnh", layout="wide")
 
+# Fail fast: thiếu cấu hình thì báo lỗi ngay khi mở trang và dừng render.
 try:
     load_openai_settings()
 except RuntimeError as error:
@@ -62,13 +54,19 @@ if user_input:
         st.markdown(user_input)
 
     try:
-        response = generate_response(user_input)
+        # Lịch sử trong session lúc này CHƯA gồm câu hỏi hiện tại —
+        # build_messages sẽ tự append, nhờ đó câu hỏi chỉ lên API đúng một lần.
+        response = request_chat_completion(
+            user_input, chat_history=st.session_state.chat_history
+        )
     except Exception as error:
         st.error(f"Không thể tạo câu trả lời: {error}")
     else:
         with st.chat_message("assistant"):
             st.markdown(response)
 
+        # Chỉ ghi nhận cặp hỏi-đáp sau khi thành công: API lỗi thì cả session
+        # lẫn file đều không đổi, không cần rollback.
         st.session_state.chat_history.append({"role": "user", "content": user_input})
         st.session_state.chat_history.append({"role": "assistant", "content": response})
         save_chat_history(st.session_state.chat_history, CHAT_HISTORY_FILE)
