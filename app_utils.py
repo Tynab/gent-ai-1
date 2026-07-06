@@ -29,9 +29,9 @@ def load_openai_settings() -> tuple[str, str]:
     if not api_key:
         raise RuntimeError("Missing OPENAI_API_KEY environment variable")
 
-    model_name = os.getenv("MODEL_NAME", "").strip()
+    model_name = os.getenv("OPENAI_MODEL", "").strip()
     if not model_name:
-        raise RuntimeError("Missing MODEL_NAME environment variable")
+        raise RuntimeError("Missing OPENAI_MODEL environment variable")
 
     return api_key, model_name
 

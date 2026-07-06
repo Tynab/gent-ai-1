@@ -15,7 +15,7 @@ Repo này chứa 3 ví dụ Python nhỏ để học cách gọi OpenAI API bằ
 - Windows PowerShell hoặc terminal bất kỳ có Python 3.11+
 - Virtual environment `.venv`
 - Biến môi trường `OPENAI_API_KEY`
-- Biến môi trường `MODEL_NAME` là bắt buộc.
+- Biến môi trường `OPENAI_MODEL` là bắt buộc.
 
 ## Cài đặt
 
@@ -29,7 +29,7 @@ Tạo file `.env` từ `.env.example`:
 
 ```env
 OPENAI_API_KEY=your_api_key_here
-MODEL_NAME=your_model_name_here
+OPENAI_MODEL=your_model_name_here
 ```
 
 ## Cách chạy
