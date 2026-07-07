@@ -51,4 +51,5 @@ Test mock toàn bộ lệnh gọi OpenAI — không cần API key, không tốn 
 - Thiếu biến môi trường: cả 3 app báo "Lỗi cấu hình" ngay khi khởi động (CLI thoát với exit code 1; Streamlit hiện lỗi và dừng trang).
 - CLI: thoát bằng `Ctrl + C` hoặc EOF; nhập rỗng sẽ được nhắc nhập lại; lỗi API chỉ in ra rồi hỏi tiếp.
 - `chat_history.json` luôn nằm cạnh `app_utils.py` (repo root) bất kể chạy từ thư mục nào; file hỏng được tự sao lưu sang `.bak` thay vì ghi đè.
+- Lưu lịch sử thất bại (hiếm, ví dụ nhiều tab cùng ghi một lúc): hiện cảnh báo, không mất câu trả lời vừa nhận.
 - Sửa `.env` khi app đang chạy không có tác dụng — cần restart tiến trình (biến môi trường có sẵn trong shell luôn thắng `.env`).
