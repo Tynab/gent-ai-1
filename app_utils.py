@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
 
 from functools import lru_cache
 from pathlib import Path
@@ -126,9 +127,18 @@ def load_chat_history(file_path: Path = CHAT_HISTORY_FILE) -> ChatHistory:
 
 def save_chat_history(history: ChatHistory, file_path: Path = CHAT_HISTORY_FILE) -> None:
     """Lưu lịch sử chat ra file JSON kiểu atomic để tránh file cụt giữa chừng."""
-    # Ghi ra file tạm rồi replace (atomic trên cùng ổ đĩa): tiến trình có bị
-    # ngắt giữa lúc ghi thì file lịch sử gốc vẫn nguyên vẹn.
-    temp_path = file_path.with_name(file_path.name + ".tmp")
-    with temp_path.open("w", encoding="utf-8") as file:
-        json.dump(history, file, ensure_ascii=False, indent=2)
-    temp_path.replace(file_path)
+    # File tạm đặt tên duy nhất (mkstemp) thay vì tên cố định: nhiều session/tiến
+    # trình ghi đồng thời (vd. 2 tab Streamlit) sẽ không còn đụng độ trên cùng một
+    # file tạm gây PermissionError trên Windows. Nếu ghi hoặc replace lỗi giữa
+    # chừng, file tạm được dọn dẹp và file lịch sử gốc vẫn nguyên vẹn.
+    fd, temp_name = tempfile.mkstemp(
+        dir=file_path.parent, prefix=file_path.name + ".", suffix=".tmp"
+    )
+    temp_path = Path(temp_name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as file:
+            json.dump(history, file, ensure_ascii=False, indent=2)
+        temp_path.replace(file_path)
+    except Exception:
+        temp_path.unlink(missing_ok=True)
+        raise

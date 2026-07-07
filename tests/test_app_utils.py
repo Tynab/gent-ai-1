@@ -1,6 +1,7 @@
 """Unit test cho app_utils.py — mock hoàn toàn, không gọi mạng, không cần API key."""
 
 import json
+import threading
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -118,8 +119,45 @@ class TestChatHistoryIO:
     def test_ghi_atomic_khong_sot_file_tam(self, tmp_path):
         file_path = tmp_path / "history.json"
         save_chat_history([{"role": "user", "content": "a"}], file_path)
-        assert file_path.exists()
-        assert not (tmp_path / "history.json.tmp").exists()
+        # Không còn file tạm nào sót lại (tên file tạm là duy nhất mỗi lần gọi
+        # nhờ tempfile.mkstemp, nên không thể so khớp một tên cố định).
+        assert list(tmp_path.iterdir()) == [file_path]
+
+    def test_ghi_loi_khong_lam_hong_file_goc(self, tmp_path, monkeypatch):
+        """Nếu replace lỗi giữa chừng, file gốc giữ nguyên và không sót file tạm."""
+        file_path = tmp_path / "history.json"
+        save_chat_history([{"role": "user", "content": "cũ"}], file_path)
+
+        def fail_replace(self, target):
+            raise OSError("giả lập lỗi khi thay thế file")
+
+        monkeypatch.setattr(Path, "replace", fail_replace)
+        with pytest.raises(OSError):
+            save_chat_history([{"role": "user", "content": "mới"}], file_path)
+
+        monkeypatch.undo()
+        assert load_chat_history(file_path) == [{"role": "user", "content": "cũ"}]
+        assert list(tmp_path.iterdir()) == [file_path]
+
+    def test_ghi_dong_thoi_khong_dung_do_ten_file_tam(self, tmp_path):
+        """Nhiều luồng ghi đồng thời vào cùng file không được đụng độ tên file tạm."""
+        file_path = tmp_path / "history.json"
+        errors = []
+
+        def ghi(index):
+            try:
+                save_chat_history([{"role": "user", "content": f"msg-{index}"}], file_path)
+            except Exception as error:
+                errors.append(error)
+
+        threads = [threading.Thread(target=ghi, args=(i,)) for i in range(8)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        assert errors == []
+        assert load_chat_history(file_path)
 
     def test_ghi_de_duoc_file_cu(self, tmp_path):
         file_path = tmp_path / "history.json"
