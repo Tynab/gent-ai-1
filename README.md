@@ -1,31 +1,29 @@
 # Gen AI Playground
 
-Repo này chứa 3 ví dụ Python nhỏ để học cách gọi OpenAI API bằng CLI và Streamlit. Mã nguồn được tối ưu lại theo hướng tách logic dùng chung, kiểm tra cấu hình sớm, và giữ cho từng file có một trách nhiệm rõ ràng.
+Ba ví dụ Python nhỏ để học cách gọi OpenAI Chat Completions API (SDK openai 2.x) qua CLI và Streamlit. Logic dùng chung nằm trong `app_utils.py`; mỗi entry point giữ một trách nhiệm rõ ràng.
 
-## Tổng quan kỹ thuật
+## Cấu trúc
 
-- `app_utils.py`: lớp helper dùng chung cho cấu hình OpenAI, tạo payload `messages`, và đọc/ghi lịch sử chat JSON.
-- `intro_to_openai.py`: script CLI tối giản, nhận câu hỏi liên tục từ terminal và in câu trả lời.
-- `openai_with_ui.py`: giao diện Streamlit không lưu ngữ cảnh hỏi đáp.
-- `openai_with_context.py`: giao diện Streamlit có lưu lịch sử chat vào `chat_history.json`.
-- `.env.example`: mẫu cấu hình môi trường.
+- `app_utils.py` — cấu hình, client OpenAI (cache), payload `messages`, đọc/ghi lịch sử chat.
+- `intro_to_openai.py` — CLI hỏi đáp liên tục, không lưu ngữ cảnh.
+- `openai_with_ui.py` — giao diện Streamlit, không lưu ngữ cảnh.
+- `openai_with_context.py` — giao diện Streamlit, lưu lịch sử vào `chat_history.json`.
+- `tests/test_app_utils.py` — unit test cho toàn bộ logic dùng chung.
 
-## Yêu cầu môi trường
+## Yêu cầu
 
-- Windows PowerShell hoặc terminal bất kỳ có Python 3.11+
-- Virtual environment `.venv`
-- Biến môi trường `OPENAI_API_KEY`
-- Biến môi trường `OPENAI_MODEL` là bắt buộc.
+- Python 3.10+ (khuyến nghị 3.11)
+- API key của OpenAI
 
 ## Cài đặt
 
 ```powershell
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install openai streamlit python-dotenv
+python -m pip install -r requirements.txt
 ```
 
-Tạo file `.env` từ `.env.example`:
+Tạo file `.env` từ `.env.example` — cả hai biến đều bắt buộc, không có model mặc định:
 
 ```env
 OPENAI_API_KEY=your_api_key_here
@@ -34,44 +32,24 @@ OPENAI_MODEL=your_model_name_here
 
 ## Cách chạy
 
-Chạy bản CLI:
-
 ```powershell
-python .\intro_to_openai.py
+python .\intro_to_openai.py                        # CLI
+python -m streamlit run .\openai_with_ui.py        # Streamlit, không ngữ cảnh
+python -m streamlit run .\openai_with_context.py   # Streamlit, có lưu lịch sử
 ```
 
-Nhấn `Ctrl + C` để dừng phiên CLI.
-
-Chạy Streamlit UI không lưu ngữ cảnh:
+## Chạy test
 
 ```powershell
-python -m streamlit run .\openai_with_ui.py
+python -m pytest
 ```
 
-Chạy Streamlit UI có lưu ngữ cảnh:
+Test mock toàn bộ lệnh gọi OpenAI — không cần API key, không tốn phí, không gọi mạng.
 
-```powershell
-python -m streamlit run .\openai_with_context.py
-```
+## Ghi chú hành vi
 
-## Luồng xử lý chính
-
-1. `load_dotenv()` nạp biến môi trường từ file `.env`.
-2. `app_utils.load_openai_settings()` xác thực `OPENAI_API_KEY` và model.
-3. `app_utils.request_chat_completion()` tạo OpenAI client, lập payload `messages`, gửi request, và trả về nội dung đã rút gọn.
-4. Riêng `openai_with_context.py` đọc/ghi `chat_history.json` để giữ lịch sử hỏi đáp.
-
-## Những điểm đã được clean up
-
-- Bỏ lặp logic kết nối OpenAI giữa 3 file entrypoint.
-- Chuẩn hóa kiểm tra lỗi cấu hình thay vì để crash không rõ nguyên nhân.
-- Tách phần đọc/ghi lịch sử chat ra khỏi Streamlit để dễ bảo trì.
-- Sửa luồng render chat trong Streamlit để block `assistant` không bị lồng bên trong block `user`.
-- Bổ sung module docstring và comment mô tả bằng tiếng Việt cho phần code tự viết.
-
-## Gợi ý mở rộng tiếp theo
-
-- Thêm `requirements.txt` hoặc `pyproject.toml` để khóa phiên bản dependency.
-- Bổ sung lại test tự động cho luồng gọi API và xử lý session Streamlit khi cần CI/CD.
-- Bổ sung nút `Xóa lịch sử chat` trong bản có ngữ cảnh nếu muốn reset nhanh.
-
+- Thiếu biến môi trường: cả 3 app báo "Lỗi cấu hình" ngay khi khởi động (CLI thoát với exit code 1; Streamlit hiện lỗi và dừng trang).
+- CLI: thoát bằng `Ctrl + C` hoặc EOF; nhập rỗng sẽ được nhắc nhập lại; lỗi API chỉ in ra rồi hỏi tiếp.
+- `chat_history.json` luôn nằm cạnh `app_utils.py` (repo root) bất kể chạy từ thư mục nào; file hỏng được tự sao lưu sang `.bak` thay vì ghi đè.
+- Lưu lịch sử thất bại (hiếm, ví dụ nhiều tab cùng ghi một lúc): hiện cảnh báo, không mất câu trả lời vừa nhận.
+- Sửa `.env` khi app đang chạy không có tác dụng — cần restart tiến trình (biến môi trường có sẵn trong shell luôn thắng `.env`).
