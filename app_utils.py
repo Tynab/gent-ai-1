@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+import time
 
 from functools import lru_cache
 from pathlib import Path
@@ -125,12 +126,18 @@ def load_chat_history(file_path: Path = CHAT_HISTORY_FILE) -> ChatHistory:
     return normalized_history
 
 
+_REPLACE_RETRY_ATTEMPTS = 5
+_REPLACE_RETRY_DELAY_SECONDS = 0.02
+
+
 def save_chat_history(history: ChatHistory, file_path: Path = CHAT_HISTORY_FILE) -> None:
     """Lưu lịch sử chat ra file JSON kiểu atomic để tránh file cụt giữa chừng."""
     # File tạm đặt tên duy nhất (mkstemp) thay vì tên cố định: nhiều session/tiến
     # trình ghi đồng thời (vd. 2 tab Streamlit) sẽ không còn đụng độ trên cùng một
-    # file tạm gây PermissionError trên Windows. Nếu ghi hoặc replace lỗi giữa
-    # chừng, file tạm được dọn dẹp và file lịch sử gốc vẫn nguyên vẹn.
+    # file tạm gây PermissionError trên Windows. Nếu ghi lỗi, file tạm được dọn
+    # dẹp và file lịch sử gốc vẫn nguyên vẹn. Bước replace cuối được thử lại vài
+    # lần: Windows có thể tạm thời từ chối thay thế đích khi nhiều luồng/tiến
+    # trình khác cũng đang replace vào đúng file đó cùng lúc.
     fd, temp_name = tempfile.mkstemp(
         dir=file_path.parent, prefix=file_path.name + ".", suffix=".tmp"
     )
@@ -138,7 +145,15 @@ def save_chat_history(history: ChatHistory, file_path: Path = CHAT_HISTORY_FILE)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as file:
             json.dump(history, file, ensure_ascii=False, indent=2)
-        temp_path.replace(file_path)
+
+        for attempt in range(_REPLACE_RETRY_ATTEMPTS):
+            try:
+                temp_path.replace(file_path)
+                return
+            except OSError:
+                if attempt == _REPLACE_RETRY_ATTEMPTS - 1:
+                    raise
+                time.sleep(_REPLACE_RETRY_DELAY_SECONDS)
     except Exception:
         temp_path.unlink(missing_ok=True)
         raise

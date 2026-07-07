@@ -69,4 +69,9 @@ if user_input:
         # lẫn file đều không đổi, không cần rollback.
         st.session_state.chat_history.append({"role": "user", "content": user_input})
         st.session_state.chat_history.append({"role": "assistant", "content": response})
-        save_chat_history(st.session_state.chat_history, CHAT_HISTORY_FILE)
+        try:
+            save_chat_history(st.session_state.chat_history, CHAT_HISTORY_FILE)
+        except Exception as error:
+            # Lưu thất bại không nên xóa câu trả lời vừa hiển thị — chỉ cảnh báo;
+            # lượt hỏi-đáp này vẫn còn trong session và sẽ được lưu ở lần kế tiếp.
+            st.warning(f"Không thể lưu lịch sử chat: {error}")
